@@ -21,6 +21,11 @@ void Filter::setQ(float q) {
     updateCoefficents();
 }
 
+void Filter::setType(float type) {
+    this->mFilterType = static_cast<FilterType>(static_cast<int>(type));
+    updateCoefficents();
+}
+
 void Filter::setSampleRate(double sampleRate) {
     this->mFs = sampleRate;
 }
@@ -36,21 +41,41 @@ void Filter::updateCoefficents() {
     omega = (2 * mPI) * (mFc / mFs);
     alpha = sin(omega) / (2 * mQ);
     
-    a0 = 1 + alpha;
-    a1 = -2 * cos(omega);
-    a2 = 1 - alpha;
-    b0 = (1 - cos(omega)) / 2;
-    b1 = 1 - cos(omega);
-    b2 = (1 - cos(omega)) / 2;
+    switch (mFilterType) {
+        case LPF:
+            a0 = 1 + alpha;
+            a1 = -2 * cos(omega);
+            a2 = 1 - alpha;
+            b0 = (1 - cos(omega)) / 2;
+            b1 = 1 - cos(omega);
+            b2 = (1 - cos(omega)) / 2;
+            break;
+        case HPF:
+            a0 = 1 + alpha;
+            a1 = -2 * cos(omega);
+            a2 = 1 - alpha;
+            b0 = (1 + cos(omega)) / 2;
+            b1 = -(1 + cos(omega));
+            b2 = (1 + cos(omega)) / 2;
+            break;
+        case BPF:
+            a0 = 1 + alpha;
+            a1 = -2 * cos(omega);
+            a2 = 1 - alpha;
+            b0 = alpha;
+            b1 = 0.f;
+            b2 = -alpha;
+        default:
+            break;
+    }
+
 }
 
-float Filter::process(int channel, float inputSample) {
+float Filter::processSample(int channel, float inputSample) {
     float x0 = inputSample;
-    float y0 = (b0/a0)*x0 + (b1/a0)*xn_1[channel] + (b2/a0)*xn_2[channel]
-             - (a1/a0)*yn_1[channel] - (a2/a0)*yn_2[channel];
+    float y0 = (b0/a0)*x0 + (b1/a0)*xn_1[channel] + (b2/a0)*xn_2[channel] - (a1/a0)*yn_1[channel] - (a2/a0)*yn_2[channel];
     auto outputSample = y0;
-    
-//     edelliset samplet
+
     xn_2[channel] = xn_1[channel];
     xn_1[channel] = x0;
     yn_2[channel] = yn_1[channel];

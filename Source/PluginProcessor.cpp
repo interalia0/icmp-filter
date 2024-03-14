@@ -24,12 +24,14 @@ ICMPfilterAudioProcessor::ICMPfilterAudioProcessor()
 {
     treeState.addParameterListener("cutoff", this);
     treeState.addParameterListener("quality", this);
+    treeState.addParameterListener("fType", this);
 }
 
 ICMPfilterAudioProcessor::~ICMPfilterAudioProcessor()
 {
     treeState.removeParameterListener("cutoff", this);
     treeState.removeParameterListener("quality", this);
+    treeState.removeParameterListener("fType", this);
 }
 
 //==============================================================================
@@ -98,6 +100,8 @@ void ICMPfilterAudioProcessor::changeProgramName (int index, const juce::String&
 void ICMPfilterAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     filter.setSampleRate(sampleRate);
+    filter.setCutoff(treeState.getRawParameterValue("cutoff")->load());
+    filter.setQ(treeState.getRawParameterValue("quality")->load());
     filter.reset();
 }
 
@@ -159,7 +163,7 @@ void ICMPfilterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
             auto* out = buffer.getWritePointer (channel);
         
         for (int sample = 0; sample < buffer.getNumSamples(); ++sample) {
-            out[sample] = filter.process(channel, in[sample]);
+            out[sample] = filter.processSample(channel, in[sample]);
         }
     }
 }
@@ -204,7 +208,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout ICMPfilterAudioProcessor::cr
     using range = juce::NormalisableRange<float>;
     
     layout.add(std::make_unique<juce::AudioParameterFloat>(pID{"cutoff", 1}, "Cutoff", range{10, 20000, 1, 0.3}, 20000));
-    layout.add(std::make_unique<juce::AudioParameterFloat>(pID{"quality", 1}, "Q", range{0, 5, 0.1}, 0.5));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(pID{"quality", 1}, "Q", range{0.7, 10, 0.1}, 0.7));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(pID{"fType", 1}, "Type", juce::StringArray{"LP", "HP","BP"}, 0));
     
     return layout;
 }
@@ -217,5 +222,9 @@ void ICMPfilterAudioProcessor::parameterChanged(const juce::String &parameterID,
     
     if (parameterID == "quality") {
         filter.setQ(newValue);
+    }
+    
+    if (parameterID == "fType") {
+        filter.setType(newValue);
     }
 }
