@@ -22,10 +22,14 @@ ICMPfilterAudioProcessor::ICMPfilterAudioProcessor()
                        )
 #endif
 {
+    treeState.addParameterListener("cutoff", this);
+    treeState.addParameterListener("quality", this);
 }
 
 ICMPfilterAudioProcessor::~ICMPfilterAudioProcessor()
 {
+    treeState.removeParameterListener("cutoff", this);
+    treeState.removeParameterListener("quality", this);
 }
 
 //==============================================================================
@@ -93,8 +97,8 @@ void ICMPfilterAudioProcessor::changeProgramName (int index, const juce::String&
 //==============================================================================
 void ICMPfilterAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    // Use this method as the place to do any pre-playback
-    // initialisation that you need..
+    filter.setSampleRate(sampleRate);
+    filter.reset();
 }
 
 void ICMPfilterAudioProcessor::releaseResources()
@@ -150,11 +154,13 @@ void ICMPfilterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
     // the samples and the outer loop is handling the channels.
     // Alternatively, you can process the samples with the channels
     // interleaved by keeping the same state.
-    for (int channel = 0; channel < totalNumInputChannels; ++channel)
-    {
-        auto* channelData = buffer.getWritePointer (channel);
-
-        // ..do something to the data...
+    for (int channel = 0; channel < totalNumInputChannels; ++channel) {
+            auto* in = buffer.getReadPointer (channel);
+            auto* out = buffer.getWritePointer (channel);
+        
+        for (int sample = 0; sample < buffer.getNumSamples(); ++sample) {
+            out[sample] = filter.process(channel, in[sample]);
+        }
     }
 }
 
@@ -166,7 +172,8 @@ bool ICMPfilterAudioProcessor::hasEditor() const
 
 juce::AudioProcessorEditor* ICMPfilterAudioProcessor::createEditor()
 {
-    return new ICMPfilterAudioProcessorEditor (*this);
+//    return new ICMPfilterAudioProcessorEditor (*this);
+    return new juce::GenericAudioProcessorEditor (*this);
 }
 
 //==============================================================================
@@ -188,4 +195,27 @@ void ICMPfilterAudioProcessor::setStateInformation (const void* data, int sizeIn
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new ICMPfilterAudioProcessor();
+}
+
+juce::AudioProcessorValueTreeState::ParameterLayout ICMPfilterAudioProcessor::createParamLayout()
+{
+    juce::AudioProcessorValueTreeState::ParameterLayout layout;
+    using pID = juce::ParameterID;
+    using range = juce::NormalisableRange<float>;
+    
+    layout.add(std::make_unique<juce::AudioParameterFloat>(pID{"cutoff", 1}, "Cutoff", range{10, 20000, 1, 0.3}, 20000));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(pID{"quality", 1}, "Q", range{0, 5, 0.1}, 0.5));
+    
+    return layout;
+}
+
+void ICMPfilterAudioProcessor::parameterChanged(const juce::String &parameterID, float newValue)
+{
+    if (parameterID == "cutoff") {
+        filter.setCutoff(newValue);
+    }
+    
+    if (parameterID == "quality") {
+        filter.setQ(newValue);
+    }
 }
