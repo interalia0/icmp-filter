@@ -117,12 +117,13 @@ void ICMPfilterAudioProcessor::prepareToPlay (double sampleRate, int samplesPerB
     filter.setQ(treeState.getRawParameterValue("quality")->load());
     filter.reset();
     
-    smoothedCutoff.reset(sampleRate, 0.5f);
+    smoothCutoff.reset(sampleRate, 0.5f);
+    smoothModCutoff.reset(sampleRate, 1.f);
     smoothedQ.reset(sampleRate, 0.5f);
     
     juce::dsp::ProcessSpec spec;
     spec.sampleRate = sampleRate;
-    spec.numChannels = getTotalNumInputChannels();
+    spec.numChannels = getTotalNumOutputChannels();
     spec.maximumBlockSize = samplesPerBlock;
     
     lfo.prepare(spec);
@@ -166,33 +167,24 @@ void ICMPfilterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
     juce::ScopedNoDenormals noDenormals;
     auto totalNumInputChannels  = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
-
     auto cutoffVal = treeState.getRawParameterValue("cutoff")->load();
     bool isLfoOn = treeState.getRawParameterValue("lfoOn")->load();
+    bool lfoSync = treeState.getRawParameterValue("lfoSync")->load();
     
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
-    for (int channel = 0; channel < totalNumInputChannels; ++channel) {
-        
+    for (int channel = 0; channel < totalNumInputChannels; ++channel) {        
         auto* in = buffer.getReadPointer (channel);
         auto* out = buffer.getWritePointer (channel);
         
         for (int sample = 0; sample < buffer.getNumSamples(); ++sample) {
-                
             if (isLfoOn && samplesSinceLastUpdate == 0) {
-                auto lfoOut = lfo.processSample(0.f);
-                auto lfoCutoffHz = juce::jmap(lfoOut, -1.f, 1.f, 1.f, lfo.getLfoDepth());
-                lfoCutoffHz += cutoffVal;
-                auto limitedCutoff = juce::jmin(20000.f, lfoCutoffHz);
-                
-                filter.setCutoff(limitedCutoff);
-                
+                filter.setCutoff(lfo.processLfoFree(cutoffVal));
                 samplesSinceLastUpdate = 20;
             }
-            
+    
             out[sample] = filter.processSample(channel, in[sample]);
-            
             if (samplesSinceLastUpdate > 0) {
                 samplesSinceLastUpdate--;
             }
@@ -233,6 +225,19 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
     return new ICMPfilterAudioProcessor();
 }
 
+double ICMPfilterAudioProcessor::getHostBpm() const
+{
+    if (auto bpmFromHost = *getPlayHead()->getPosition()->getBpm()) {
+        auto bpm = bpmFromHost;
+        return bpm;
+    }
+    else {
+        treeState.getParameter("lfoSync")->setValueNotifyingHost(0);
+        return 0;
+    }
+
+}
+
 juce::AudioProcessorValueTreeState::ParameterLayout ICMPfilterAudioProcessor::createParamLayout()
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
@@ -243,12 +248,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout ICMPfilterAudioProcessor::cr
     layout.add(std::make_unique<juce::AudioParameterFloat>(pID{"quality", 1}, "Q", range{0.3, 3, 0.1}, 0.3));
     layout.add(std::make_unique<juce::AudioParameterChoice>(pID{"fType", 1}, "Type", juce::StringArray{"LP","HP","BP","AP"}, 0));
     layout.add(std::make_unique<juce::AudioParameterBool>(pID{"lfoOn", 1}, "LFO On", false));
+//    layout.add(std::make_unique<juce::AudioParameterBool>(pID{"lfoSync", 1}, "LFO Sync", false));
     layout.add(std::make_unique<juce::AudioParameterChoice>(pID{"lfoWave", 1}, "LFO Waveform", juce::StringArray{"Sine","Ramp Up", "Ramp Down", "Square"}, 0));
-    layout.add(std::make_unique<juce::AudioParameterFloat>(pID{"lfoDepth", 1}, "LFO Depth", range{1.f, 10000.f, 1}, 500.f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(pID{"lfoDepth", 1}, "LFO Depth", range{1.f, 20000.f, 1}, 500.f));
     layout.add(std::make_unique<juce::AudioParameterFloat>(pID{"lfoRate", 1}, "LFO Rate", range{0.1f, 100.f, 0.1}, 1.f));
-
-
-
     
     return layout;
 }
@@ -256,17 +259,15 @@ juce::AudioProcessorValueTreeState::ParameterLayout ICMPfilterAudioProcessor::cr
 void ICMPfilterAudioProcessor::parameterChanged(const juce::String &parameterID, float newValue)
 {
     if (parameterID == "cutoff") {
-        smoothedCutoff.setCurrentAndTargetValue(newValue);
-        float currentCutoff = smoothedCutoff.getNextValue();
+        smoothCutoff.setCurrentAndTargetValue(newValue);
+        float currentCutoff = smoothCutoff.getNextValue();
         filter.setCutoff(currentCutoff);
     }
-    
     if (parameterID == "quality") {
         smoothedQ.setCurrentAndTargetValue(newValue);
         float currentQ = smoothedQ.getNextValue();
         filter.setQ(currentQ);
     }
-    
     if (parameterID == "fType") {
         filter.reset();
         filter.setType(newValue);
@@ -282,7 +283,6 @@ void ICMPfilterAudioProcessor::parameterChanged(const juce::String &parameterID,
     if (parameterID == "lfoRate") {
         lfo.setFrequency(newValue);
     }
-
 }
 
 

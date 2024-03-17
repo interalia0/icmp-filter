@@ -63,6 +63,8 @@ public:
     juce::AudioProcessorValueTreeState treeState {*this, nullptr, "params", createParamLayout()};
     
     void parameterChanged(const juce::String& parameterID, float newValue) override;
+    
+    double getHostBpm() const;
 
 private:
 
@@ -71,7 +73,8 @@ private:
     float mLfoDepth = 100.f;
 
     Filter filter;
-    juce::SmoothedValue<float> smoothedCutoff;
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Multiplicative> smoothCutoff;
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Multiplicative> smoothModCutoff;
     juce::SmoothedValue<float> smoothedQ;
 
 

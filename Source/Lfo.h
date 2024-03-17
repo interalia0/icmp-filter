@@ -22,6 +22,8 @@ public:
     float processSample(float inputSample);
     
     float getLfoDepth() const;
+    float processLfoFree(float cutoffVal);
+    float processLfoSync(float cutoffVal, double hostBpm);
 
 private:
     float mFrequency = 0.5f;

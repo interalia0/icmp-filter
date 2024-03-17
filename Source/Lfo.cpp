@@ -59,3 +59,25 @@ float LFO::processSample(float inputSample) {
     return osc.processSample(inputSample);
 }
 
+float LFO::processLfoFree(float cutoffVal) {
+    auto lfoOut = osc.processSample(0.f);
+    auto lfoCutoffHz = juce::jmap(lfoOut, -1.f, 1.f, 1.f, mLfoDepth); // korjaa lfo ei mene tarpeeksi alas
+    lfoCutoffHz += cutoffVal;
+    auto rangeLimitedCutoff = juce::jmin(20000.f, lfoCutoffHz);
+    
+    return rangeLimitedCutoff;
+}
+             
+float LFO::processLfoSync(float cutoffVal, double hostBpm) {
+    auto beatTimeInSeconds = 60.0f / hostBpm;
+    auto lfoCutoffHzSynced = 1.0f / (beatTimeInSeconds * 4);
+    osc.setFrequency(lfoCutoffHzSynced);
+    
+    auto lfoOut = osc.processSample(0.f);
+    auto lfoCutoffHz = juce::jmap(lfoOut, -1.f, 1.f, 1.f, mLfoDepth);   
+    lfoCutoffHz += cutoffVal;
+    auto rangeLimitedCutoff = juce::jmin(20000.f, lfoCutoffHz);
+    
+    return rangeLimitedCutoff;
+}
+   
