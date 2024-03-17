@@ -37,6 +37,7 @@ void Filter::reset() {
     std::fill(yn_2.begin(), yn_2.end(), 0.f);
 }
 
+
 void Filter::updateCoefficents() {
     omega = (2 * mPI) * (mFc / mFs);
     alpha = sin(omega) / (2 * mQ);
@@ -65,6 +66,15 @@ void Filter::updateCoefficents() {
             b0 = alpha;
             b1 = 0.f;
             b2 = -alpha;
+            break;
+        case APF:
+            a0 = 1 + alpha;
+            a1 = -2 * cos(omega);
+            a2 = 1 - alpha;
+            b0 = 1 - alpha;
+            b1 = -2 * cos(omega);
+            b2 = 1 + alpha;
+            break;
         default:
             break;
     }

@@ -18,7 +18,8 @@ class Filter {
     enum FilterType {
         LPF,
         HPF,
-        BPF
+        BPF,
+        APF
     };
     
 public:
