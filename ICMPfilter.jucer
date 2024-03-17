@@ -4,6 +4,8 @@
               addUsingNamespaceToJuceHeader="0" displaySplashScreen="1" jucerFormatVersion="1">
   <MAINGROUP id="HR53IO" name="ICMPfilter">
     <GROUP id="{E831F5B7-46D6-E3CB-1F5D-63AF84BD582E}" name="Source">
+      <FILE id="GJNZTl" name="Lfo.cpp" compile="1" resource="0" file="Source/Lfo.cpp"/>
+      <FILE id="UrEt1O" name="Lfo.h" compile="0" resource="0" file="Source/Lfo.h"/>
       <FILE id="Mrkj87" name="PluginProcessor.cpp" compile="1" resource="0"
             file="Source/PluginProcessor.cpp"/>
       <FILE id="y7rjYw" name="PluginProcessor.h" compile="0" resource="0"

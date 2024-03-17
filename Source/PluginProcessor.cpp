@@ -26,6 +26,7 @@ ICMPfilterAudioProcessor::ICMPfilterAudioProcessor()
     treeState.addParameterListener("quality", this);
     treeState.addParameterListener("fType", this);
     treeState.addParameterListener("lfoOn", this);
+    treeState.addParameterListener("lfoWave", this);
     treeState.addParameterListener("lfoDepth", this);
     treeState.addParameterListener("lfoRate", this);
 
@@ -39,6 +40,7 @@ ICMPfilterAudioProcessor::~ICMPfilterAudioProcessor()
     treeState.removeParameterListener("quality", this);
     treeState.removeParameterListener("fType", this);
     treeState.removeParameterListener("lfoOn", this);
+    treeState.removeParameterListener("lfoWave", this);
     treeState.removeParameterListener("lfoDepth", this);
     treeState.removeParameterListener("lfoRate", this);
 
@@ -115,13 +117,15 @@ void ICMPfilterAudioProcessor::prepareToPlay (double sampleRate, int samplesPerB
     filter.setQ(treeState.getRawParameterValue("quality")->load());
     filter.reset();
     
+    smoothedCutoff.reset(sampleRate, 0.5f);
+    smoothedQ.reset(sampleRate, 0.5f);
+    
     juce::dsp::ProcessSpec spec;
     spec.sampleRate = sampleRate;
     spec.numChannels = getTotalNumInputChannels();
     spec.maximumBlockSize = samplesPerBlock;
     
     lfo.prepare(spec);
-    lfo.initialise([](float x) {return std::sin(x);}, 128);
     lfo.setFrequency(0.5);
 }
 
@@ -178,12 +182,13 @@ void ICMPfilterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
                 
             if (isLfoOn && samplesSinceLastUpdate == 0) {
                 auto lfoOut = lfo.processSample(0.f);
-                auto lfoCutoffHz = juce::jmap(lfoOut, -1.f, 1.f, 1.f, mLfoDepth);
+                auto lfoCutoffHz = juce::jmap(lfoOut, -1.f, 1.f, 1.f, lfo.getLfoDepth());
                 lfoCutoffHz += cutoffVal;
                 auto limitedCutoff = juce::jmin(20000.f, lfoCutoffHz);
+                
                 filter.setCutoff(limitedCutoff);
-        
-                samplesSinceLastUpdate = 10;
+                
+                samplesSinceLastUpdate = 20;
             }
             
             out[sample] = filter.processSample(channel, in[sample]);
@@ -228,10 +233,6 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
     return new ICMPfilterAudioProcessor();
 }
 
-void ICMPfilterAudioProcessor::setLfoDepth(float lfoDepth) {
-    this->mLfoDepth = lfoDepth;
-}
-
 juce::AudioProcessorValueTreeState::ParameterLayout ICMPfilterAudioProcessor::createParamLayout()
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
@@ -242,6 +243,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout ICMPfilterAudioProcessor::cr
     layout.add(std::make_unique<juce::AudioParameterFloat>(pID{"quality", 1}, "Q", range{0.3, 3, 0.1}, 0.3));
     layout.add(std::make_unique<juce::AudioParameterChoice>(pID{"fType", 1}, "Type", juce::StringArray{"LP","HP","BP","AP"}, 0));
     layout.add(std::make_unique<juce::AudioParameterBool>(pID{"lfoOn", 1}, "LFO On", false));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(pID{"lfoWave", 1}, "LFO Waveform", juce::StringArray{"Sine","Ramp Up", "Ramp Down", "Square"}, 0));
     layout.add(std::make_unique<juce::AudioParameterFloat>(pID{"lfoDepth", 1}, "LFO Depth", range{1.f, 10000.f, 1}, 500.f));
     layout.add(std::make_unique<juce::AudioParameterFloat>(pID{"lfoRate", 1}, "LFO Rate", range{0.1f, 100.f, 0.1}, 1.f));
 
@@ -254,20 +256,27 @@ juce::AudioProcessorValueTreeState::ParameterLayout ICMPfilterAudioProcessor::cr
 void ICMPfilterAudioProcessor::parameterChanged(const juce::String &parameterID, float newValue)
 {
     if (parameterID == "cutoff") {
-        filter.setCutoff(newValue);
+        smoothedCutoff.setCurrentAndTargetValue(newValue);
+        float currentCutoff = smoothedCutoff.getNextValue();
+        filter.setCutoff(currentCutoff);
     }
     
     if (parameterID == "quality") {
-        filter.setQ(newValue);
+        smoothedQ.setCurrentAndTargetValue(newValue);
+        float currentQ = smoothedQ.getNextValue();
+        filter.setQ(currentQ);
     }
     
     if (parameterID == "fType") {
         filter.reset();
         filter.setType(newValue);
     }
-    
+    if (parameterID == "lfoWave") {
+        filter.reset();
+        lfo.selectWaveform(newValue);
+    }
     if (parameterID == "lfoDepth") {
-        setLfoDepth(newValue);
+        lfo.setLfoDepth(newValue);
     }
     
     if (parameterID == "lfoRate") {

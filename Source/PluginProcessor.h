@@ -10,6 +10,7 @@
 
 #include <JuceHeader.h>
 #include "Filter.h"
+#include "Lfo.h"
 
 
 //==============================================================================
@@ -64,14 +65,15 @@ public:
     void parameterChanged(const juce::String& parameterID, float newValue) override;
 
 private:
-    
-    void setLfoDepth(float lfoDepth);
-    
-    juce::dsp::Oscillator<float> lfo;
+
+    LFO lfo;
     int samplesSinceLastUpdate = 100;
     float mLfoDepth = 100.f;
 
     Filter filter;
+    juce::SmoothedValue<float> smoothedCutoff;
+    juce::SmoothedValue<float> smoothedQ;
+
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ICMPfilterAudioProcessor)

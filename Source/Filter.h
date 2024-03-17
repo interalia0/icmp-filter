@@ -15,13 +15,6 @@
 
 class Filter {
 
-    enum FilterType {
-        LPF,
-        HPF,
-        BPF,
-        APF
-    };
-    
 public:
     void setCutoff (float cutoff);
     void setQ (float q);
@@ -46,6 +39,13 @@ private:
     
     std::array<float, 2> yn_1;
     std::array<float, 2> yn_2;
+    
+    enum FilterType {
+        LPF,
+        HPF,
+        BPF,
+        APF
+    };
 
     FilterType mFilterType = LPF;
 };
