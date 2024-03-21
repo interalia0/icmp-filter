@@ -48,7 +48,7 @@ void LFO::selectWaveform(float waveform) {
             osc.initialise ([] (float x){return juce::jmap(x, float(-juce::MathConstants<double>::pi), float(juce::MathConstants<double>::pi), float(1), float(-1));}, 2);
             break;
         case SQUARE:
-            osc.initialise([](float x) { return sin(x) >= 0 ? 1.0 : -1.0; }, 1);
+//            osc.initialise([](float x) { return sin(x) >= 0 ? 1.0 : -1.0; }, 1);
             break;
         default:
             break;
