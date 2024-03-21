@@ -67,20 +67,16 @@ public:
     double getHostBpm() const;
 
 private:
-
     void updateParameters();
 
     LFO lfo;
     int samplesSinceLastUpdate = 100;
-    float mLfoDepth = 100.f;
 
     Filter filter;
 
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Multiplicative> smoothCutoff;
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Multiplicative> smoothModCutoff;
-    juce::SmoothedValue<float> smoothedQ;
-
-
+    juce::SmoothedValue<float> smoothQ;
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ICMPfilterAudioProcessor)
 };

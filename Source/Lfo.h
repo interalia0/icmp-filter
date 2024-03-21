@@ -22,8 +22,6 @@ public:
     float processSample(float inputSample);
     
     float getLfoDepth() const;
-    float processLfoFree(float cutoffVal);
-    float processLfoSync(float cutoffVal, double hostBpm);
 
 private:
     float mFrequency = 0.5f;
@@ -38,8 +36,7 @@ private:
     enum Waveform {
         SINE,
         RAMP_UP,
-        RAMP_DOWN,
-        SQUARE
+        RAMP_DOWN
     };
     
     Waveform mWaveform = SINE;

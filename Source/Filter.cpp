@@ -78,7 +78,6 @@ void Filter::updateCoefficents() {
         default:
             break;
     }
-
 }
 
 float Filter::processSample(int channel, float inputSample) {
